@@ -1,0 +1,13 @@
+data/github-can-sahin/
+data/github-chaosinside/
+data/audio/
+__pycache__/
+*.pyc
+.env
+venv/
+.cache/
+*.sql.gz
+node_modules/
+frontend/.next/
+frontend/out/
+.DS_Store

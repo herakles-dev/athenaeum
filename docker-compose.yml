@@ -1,0 +1,58 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: handbook_library_db
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5442:5432"
+    environment:
+      POSTGRES_DB: handbook_library
+      POSTGRES_USER: handbook_library
+      POSTGRES_PASSWORD: ${HANDBOOK_LIBRARY_DB_PASSWORD:?Set HANDBOOK_LIBRARY_DB_PASSWORD in .env or hercules.env}
+    volumes:
+      - handbook_library_pgdata:/var/lib/postgresql/data
+      - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alan_watts"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    container_name: handbook_library_api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8140:8000"
+    environment:
+      DATABASE_URL: postgresql://alan_watts:${HANDBOOK_LIBRARY_DB_PASSWORD}@db:5432/handbook_library
+      PYTHONPATH: /app
+      # LLM provider for chat (anthropic | openai | ollama | gemini | openrouter)
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      # Legacy: used by bulk embedding pipeline
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./data:/app/data
+
+  frontend:
+    build: ./frontend
+    container_name: handbook_library_frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3140:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8131}
+    depends_on:
+      - api
+
+volumes:
+  handbook_library_pgdata:
